@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>班级云养宠 - 视频同款UI (含排行榜)</title>
+    <title>班级云养宠 - 完整互动升级版</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
@@ -48,11 +48,22 @@
             </div>
         </header>
 
-        <div class="bg-white border-b border-gray-200 px-6 py-3 mb-6">
-            <div class="font-bold text-gray-800 mb-2">学生信息查询</div>
-            <div class="relative w-80">
+        <div class="bg-white border-b border-gray-200 px-6 py-4 mb-6 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+            
+            <div class="flex items-center gap-3 bg-indigo-50 px-4 py-2 rounded-lg border border-indigo-100">
+                <span class="text-sm font-bold text-indigo-800"><i class="fa-solid fa-bolt mr-1"></i> 快捷操作</span>
+                <select v-model="quickTarget" class="border border-indigo-200 rounded px-2 py-1 text-sm outline-none">
+                    <option value="all">全班所有人</option>
+                    <option v-for="g in uniqueGroups" :value="g">{{ g }} 小组</option>
+                </select>
+                <input v-model.number="quickPointsAmount" type="number" placeholder="分数" class="w-20 border border-indigo-200 rounded px-2 py-1 text-sm outline-none text-center">
+                <button @click="applyQuickPoints(true)" class="bg-green-500 text-white px-3 py-1 rounded text-sm font-bold hover:bg-green-600 shadow-sm">+ 加分</button>
+                <button @click="applyQuickPoints(false)" class="bg-red-500 text-white px-3 py-1 rounded text-sm font-bold hover:bg-red-600 shadow-sm">- 扣分</button>
+            </div>
+
+            <div class="relative w-72">
                 <i class="fa-solid fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
-                <input v-model="searchQuery" type="text" placeholder="输入学生姓名搜索..." class="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded focus:outline-none focus:border-indigo-500 text-sm">
+                <input v-model="searchQuery" type="text" placeholder="输入学生姓名搜索..." class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-indigo-500 text-sm shadow-inner">
             </div>
         </div>
 
@@ -70,11 +81,18 @@
                 <div v-for="stu in filteredStudents" :key="stu.name" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                     <div class="mb-2">
                         <div class="text-lg font-bold text-gray-800">{{ stu.name }}</div>
-                        <div class="text-xs text-gray-500 mt-1">所属小组：{{ stu.group }}</div>
+                        <div class="text-xs text-gray-500 mt-1 flex items-center group">
+                            所属小组：<span class="font-bold text-indigo-600">{{ stu.group || '未分组' }}</span>
+                            <button @click="editGroup(stu)" class="ml-2 text-gray-300 hover:text-indigo-500 transition opacity-0 group-hover:opacity-100" title="修改小组">
+                                <i class="fa-solid fa-pencil"></i>
+                            </button>
+                        </div>
                     </div>
+                    
                     <div class="h-28 flex items-center justify-center my-4">
                         <img :src="getPetImage(stu)" :class="getPetStageClass(stu.points)" class="max-h-full object-contain drop-shadow" alt="宠物">
                     </div>
+                    
                     <div class="text-center mb-1">
                         <span class="text-gray-600 text-sm font-bold">个人积分：</span>
                         <span class="text-yellow-500 font-bold text-xl">{{ stu.points }}</span>
@@ -89,13 +107,14 @@
                     <div class="w-full bg-gray-100 rounded-full h-1.5 mb-4">
                         <div class="bg-indigo-500 h-1.5 rounded-full" :style="{ width: getProgress(stu.points) + '%' }"></div>
                     </div>
+                    
                     <div class="flex gap-2 mb-3">
                         <button @click="changePoints(stu, -10)" class="flex-1 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-sm font-bold hover:bg-indigo-100">- 10</button>
                         <button @click="changePoints(stu, 10)" class="flex-1 py-1.5 bg-green-50 text-green-600 border border-green-100 rounded text-sm font-bold hover:bg-green-100">+ 10</button>
                     </div>
                     <div class="flex gap-2">
                         <button @click="openPetModal(stu)" class="flex-1 py-2 bg-indigo-600 text-white rounded text-xs font-bold hover:bg-indigo-700 flex justify-center items-center">
-                            <i class="fa-solid fa-sync-alt mr-1"></i> 更换宠物
+                            <i class="fa-solid fa-sync-alt mr-1"></i> 更换物种
                         </button>
                         <button @click="openMarketForStudent(stu)" class="flex-1 py-2 bg-yellow-500 text-white rounded text-xs font-bold hover:bg-yellow-600 flex justify-center items-center">
                             <i class="fa-solid fa-cart-shopping mr-1"></i> 积分兑换
@@ -113,7 +132,6 @@
                     </h3>
                     <button @click="showRankModal = false" class="text-gray-400 hover:text-gray-700 absolute right-4 text-xl"><i class="fa-solid fa-times"></i></button>
                 </div>
-                
                 <div class="p-6 overflow-y-auto bg-gray-100 flex-1">
                     <ul class="space-y-3">
                         <li v-for="(stu, index) in sortedStudents" :key="stu.name"
@@ -125,9 +143,7 @@
                             }">
                             <div class="flex items-center gap-4">
                                 <div class="w-10 text-center text-3xl">
-                                    <span v-if="index === 0">🥇</span>
-                                    <span v-else-if="index === 1">🥈</span>
-                                    <span v-else-if="index === 2">🥉</span>
+                                    <span v-if="index === 0">🥇</span><span v-else-if="index === 1">🥈</span><span v-else-if="index === 2">🥉</span>
                                     <span v-else class="text-gray-400 text-xl font-bold">{{ index + 1 }}</span>
                                 </div>
                                 <div class="bg-gray-50 rounded-full p-2 border border-gray-100 flex-shrink-0">
@@ -147,66 +163,126 @@
                             </div>
                         </li>
                     </ul>
-                    <div v-if="sortedStudents.length === 0" class="text-center text-gray-400 py-10 flex flex-col items-center">
-                        <i class="fa-regular fa-face-frown text-4xl mb-3"></i>
-                        <p>还没有学生数据，快去导入吧！</p>
-                    </div>
                 </div>
             </div>
         </div>
 
         <div v-if="showPetModal" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl flex flex-col max-h-[90vh]">
                 <div class="flex justify-between items-center p-4 border-b">
-                    <h3 class="font-bold text-gray-800 text-lg">班级宠物伙伴选择</h3>
+                    <h3 class="font-bold text-gray-800 text-lg">更换物种基因 (共 {{ availablePetIds.length }} 种)</h3>
                     <button @click="showPetModal = false" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-times"></i></button>
                 </div>
-                <div class="p-6 overflow-y-auto bg-gray-50 flex-1 grid grid-cols-3 md:grid-cols-4 gap-4">
-                    <div v-for="(basePetId, idx) in availablePetIds" :key="basePetId" 
-                         @click="tempSelectedPet = basePetId"
-                         class="bg-white border-2 rounded-lg p-4 cursor-pointer text-center transition hover:shadow-md"
-                         :class="tempSelectedPet === basePetId ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-transparent'">
-                        <div class="font-bold text-gray-700 text-sm mb-2">宠物 {{ idx + 1 }}</div>
-                        <img :src="petDex[basePetId][0]" class="h-16 mx-auto mb-2 object-contain">
-                        <div class="text-xs text-gray-500">点击选中</div>
+                <div class="p-6 overflow-y-auto bg-gray-50 flex-1 grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    <div v-for="basePetId in availablePetIds" :key="basePetId" 
+                         @click="basePetId !== activeStudentForPet?.petBaseId ? tempSelectedPet = basePetId : null"
+                         class="bg-white border-2 rounded-lg p-3 text-center transition relative overflow-hidden"
+                         :class="[
+                            basePetId === activeStudentForPet?.petBaseId ? 'opacity-50 cursor-not-allowed border-gray-200' : 'cursor-pointer hover:shadow-md',
+                            tempSelectedPet === basePetId && basePetId !== activeStudentForPet?.petBaseId ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-transparent'
+                         ]">
+                        <div v-if="basePetId === activeStudentForPet?.petBaseId" class="absolute inset-0 bg-gray-100 bg-opacity-60 flex items-center justify-center z-10 backdrop-blur-[1px]">
+                            <span class="bg-gray-700 text-white text-xs px-2 py-1 rounded-full font-bold shadow">当前物种</span>
+                        </div>
+                        <img :src="petDex[basePetId][0]" class="h-14 mx-auto mb-1 object-contain">
+                        <div class="font-bold text-gray-700 text-xs truncate">{{ petNames[basePetId] }}</div>
                     </div>
                 </div>
                 <div class="p-4 border-t flex justify-between items-center bg-white rounded-b-lg">
-                    <div class="text-sm text-indigo-600 font-bold bg-indigo-50 px-3 py-1 rounded">
-                        <i class="fa-solid fa-info-circle"></i> 更换宠物不影响当前积分进度！
+                    <div class="text-sm text-indigo-600 font-bold bg-indigo-50 px-3 py-1.5 rounded flex-1 mr-4">
+                        <i class="fa-solid fa-info-circle"></i> 更换为其他物种，当前进化进度将完美继承！
                     </div>
-                    <div class="space-x-2">
+                    <div class="space-x-2 flex-shrink-0">
                         <button @click="showPetModal = false" class="px-4 py-2 border rounded text-gray-600 hover:bg-gray-50">取消</button>
-                        <button @click="confirmPetChange" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-bold">确认选择</button>
+                        <button @click="confirmPetChange" :disabled="!tempSelectedPet" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-bold disabled:opacity-50 disabled:cursor-not-allowed">确认更换</button>
                     </div>
                 </div>
             </div>
         </div>
 
         <div v-if="showMarketModal" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl flex flex-col max-h-[90vh]">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl flex flex-col max-h-[90vh]">
                 <div class="flex justify-between items-center p-4 border-b relative">
-                    <h3 class="font-bold text-gray-800 text-lg mx-auto">积分商城</h3>
+                    <h3 class="font-bold text-gray-800 text-lg mx-auto flex items-center">
+                        <i class="fa-solid fa-store text-yellow-500 mr-2"></i> 积分奖励集市
+                    </h3>
                     <button @click="showMarketModal = false" class="text-gray-400 hover:text-gray-600 absolute right-4"><i class="fa-solid fa-times"></i></button>
                 </div>
-                <div class="p-6 bg-gray-50 overflow-y-auto">
-                    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-6 flex items-center gap-4">
-                        <label class="font-bold text-gray-700">选择学生</label>
-                        <select v-model="marketSelectedStudent" class="border border-gray-300 rounded p-2 w-64 focus:border-indigo-500 outline-none">
-                            <option :value="null">-- 请选择 --</option>
-                            <option v-for="stu in students" :value="stu">{{ stu.name }}</option>
-                        </select>
-                        <div v-if="marketSelectedStudent" class="text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded">
-                            余额: <span class="font-bold text-yellow-500">{{ marketSelectedStudent.points }}</span> 分
+                
+                <div class="p-6 bg-gray-50 overflow-y-auto flex-1">
+                    
+                    <div class="p-4 rounded-lg mb-6 border shadow-inner transition-colors" 
+                         :class="editingItemId ? 'bg-yellow-50 border-yellow-200' : 'bg-indigo-50 border-indigo-100'">
+                        <div class="text-sm font-bold mb-3 flex items-center justify-between" :class="editingItemId ? 'text-yellow-700' : 'text-indigo-800'">
+                            <div>
+                                <i class="fa-solid" :class="editingItemId ? 'fa-pen-to-square' : 'fa-cog'"></i> 
+                                {{ editingItemId ? '编辑现有商品' : '商城维护台 (添加新奖励)' }}
+                            </div>
+                            <button v-if="editingItemId" @click="cancelEditItem" class="text-xs bg-white border border-gray-300 px-2 py-1 rounded text-gray-600 hover:bg-gray-100">取消编辑</button>
+                        </div>
+                        <div class="flex flex-wrap gap-3 items-end">
+                            <div class="w-20">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">图标</label>
+                                <input v-model="newMarketItem.icon" placeholder="Emoji" class="border rounded p-2 w-full text-center text-xl outline-none focus:border-indigo-500" :class="editingItemId ? 'border-yellow-300' : 'border-indigo-200'">
+                            </div>
+                            <div class="flex-1 min-w-[150px]">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">奖励名称</label>
+                                <input v-model="newMarketItem.name" placeholder="例如：自选同桌一天" class="border rounded p-2 w-full outline-none focus:border-indigo-500" :class="editingItemId ? 'border-yellow-300' : 'border-indigo-200'">
+                            </div>
+                            <div class="w-24">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">价格(积分)</label>
+                                <input v-model.number="newMarketItem.cost" type="number" class="border rounded p-2 w-full outline-none focus:border-indigo-500" :class="editingItemId ? 'border-yellow-300' : 'border-indigo-200'">
+                            </div>
+                            <div class="flex-1 min-w-[150px]">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">补充描述</label>
+                                <input v-model="newMarketItem.desc" placeholder="例如：可指定班级任意同学" class="border rounded p-2 w-full outline-none focus:border-indigo-500" :class="editingItemId ? 'border-yellow-300' : 'border-indigo-200'">
+                            </div>
+                            <button @click="saveMarketItem" class="text-white px-5 py-2 rounded font-bold shadow flex items-center gap-1 h-10 transition-colors"
+                                :class="editingItemId ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-indigo-600 hover:bg-indigo-700'">
+                                <i class="fa-solid" :class="editingItemId ? 'fa-check' : 'fa-plus'"></i> 
+                                {{ editingItemId ? '保存修改' : '上架' }}
+                            </button>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div v-for="item in marketItems" :key="item.id" class="bg-white rounded-lg border border-gray-200 p-4 text-center relative hover:shadow-md">
-                            <div class="absolute top-2 right-2 text-yellow-500 text-xs font-bold bg-yellow-50 px-2 py-0.5 rounded">{{ item.cost }}积分</div>
-                            <div class="text-4xl my-3">{{ item.icon }}</div>
-                            <div class="font-bold text-gray-700 text-sm mb-1">{{ item.name }}</div>
-                            <div class="text-xs text-gray-400 mb-4">{{ item.desc }}</div>
-                            <button @click="buyItem(item)" class="w-full py-1.5 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700">兑换</button>
+
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-6 flex items-center gap-4">
+                        <label class="font-bold text-gray-700 bg-yellow-100 px-3 py-1 rounded text-yellow-800"><i class="fa-solid fa-user-check mr-1"></i> 兑换核销</label>
+                        <select v-model="marketSelectedStudent" class="border border-gray-300 rounded p-2 w-64 focus:border-indigo-500 outline-none">
+                            <option :value="null">-- 请选择要兑换礼品的学生 --</option>
+                            <option v-for="stu in students" :value="stu">{{ stu.name }} ({{ stu.group || '未分组' }})</option>
+                        </select>
+                        <div v-if="marketSelectedStudent" class="text-sm text-gray-600 bg-gray-50 border px-3 py-1.5 rounded flex items-center gap-2">
+                            <span>可用余额:</span>
+                            <span class="font-bold text-yellow-500 text-lg">{{ marketSelectedStudent.points }}</span>
+                            <span>分</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        <div v-for="item in marketItems" :key="item.id" class="bg-white rounded-lg border p-4 text-center relative hover:shadow-lg transition-all group"
+                             :class="editingItemId === item.id ? 'border-yellow-400 ring-2 ring-yellow-100' : 'border-gray-200'">
+                            
+                            <div class="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button @click.stop="startEditItem(item)" class="text-gray-400 hover:text-indigo-500 bg-white rounded-full h-6 w-6 flex items-center justify-center shadow border" title="编辑商品">
+                                    <i class="fa-solid fa-pencil text-xs"></i>
+                                </button>
+                                <button @click.stop="removeMarketItem(item.id)" class="text-gray-400 hover:text-red-500 bg-white rounded-full h-6 w-6 flex items-center justify-center shadow border" title="下架该商品">
+                                    <i class="fa-solid fa-trash-alt text-xs"></i>
+                                </button>
+                            </div>
+
+                            <div class="absolute top-2 right-2 text-yellow-600 text-xs font-bold bg-yellow-100 border border-yellow-200 px-2 py-0.5 rounded-full">{{ item.cost }} 积分</div>
+                            
+                            <div class="text-5xl my-4">{{ item.icon }}</div>
+                            <div class="font-bold text-gray-800 text-sm mb-1 line-clamp-1" :title="item.name">{{ item.name }}</div>
+                            <div class="text-xs text-gray-400 mb-4 h-4 line-clamp-1">{{ item.desc }}</div>
+                            
+                            <button @click="buyItem(item)" class="w-full py-2 bg-indigo-600 text-white rounded text-sm font-bold hover:bg-indigo-700 shadow-sm flex justify-center items-center gap-2">
+                                <i class="fa-solid fa-hand-holding-heart"></i> 兑换给学生
+                            </button>
+                        </div>
+                        <div v-if="marketItems.length === 0" class="col-span-full text-center text-gray-400 py-10">
+                            商城空空如也，老师快在上方添加商品吧！
                         </div>
                     </div>
                 </div>
@@ -216,62 +292,147 @@
         <div v-if="showBattleModal" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl flex flex-col overflow-hidden" style="height: 80vh;">
                 <div class="bg-indigo-600 p-4 flex justify-between items-center text-white">
-                    <h3 class="font-bold text-xl"><i class="fa-solid fa-swords mr-2"></i>小组对战 - 答题环节</h3>
+                    <h3 class="font-bold text-xl"><i class="fa-solid fa-swords mr-2"></i>小组答题对决</h3>
                     <button @click="closeBattle" class="text-white hover:text-gray-200 text-xl"><i class="fa-solid fa-times"></i></button>
                 </div>
-                <div class="flex-1 overflow-y-auto p-6 bg-gray-100">
+                
+                <div class="flex-1 overflow-y-auto p-6 bg-gray-100 relative">
+                    
                     <div v-if="battleState === 'setup'" class="bg-white p-8 rounded-lg shadow text-center max-w-2xl mx-auto mt-10">
-                        <h2 class="text-2xl font-bold mb-6 text-gray-800">选择对战小组</h2>
+                        <h2 class="text-2xl font-bold mb-6 text-gray-800">发起小组对战</h2>
                         <div class="flex justify-center items-center gap-6 mb-8">
-                            <select v-model="battleGroupA" class="border-2 border-indigo-200 rounded p-3 text-lg font-bold w-48 text-center outline-none">
-                                <option value="">蓝方小组 (A)</option>
+                            <select v-model="battleGroupA" class="border-2 border-blue-200 rounded p-3 text-lg font-bold w-48 text-center outline-none bg-blue-50">
+                                <option value="">蓝方 (选择小组)</option>
                                 <option v-for="g in uniqueGroups" :value="g">{{ g }}</option>
                             </select>
-                            <span class="text-4xl font-black text-red-500 italic">VS</span>
-                            <select v-model="battleGroupB" class="border-2 border-red-200 rounded p-3 text-lg font-bold w-48 text-center outline-none">
-                                <option value="">红方小组 (B)</option>
+                            <span class="text-4xl font-black text-gray-400 italic">VS</span>
+                            <select v-model="battleGroupB" class="border-2 border-red-200 rounded p-3 text-lg font-bold w-48 text-center outline-none bg-red-50">
+                                <option value="">红方 (选择小组)</option>
                                 <option v-for="g in uniqueGroups" :value="g" :disabled="g === battleGroupA">{{ g }}</option>
                             </select>
                         </div>
-                        <button @click="startBattle" :disabled="!battleGroupA || !battleGroupB" class="bg-yellow-500 text-white px-10 py-3 rounded-full font-bold text-xl shadow-lg hover:bg-yellow-600 disabled:opacity-50">开始对战</button>
+                        <div class="mb-8 flex items-center justify-center gap-2">
+                            <label class="font-bold text-gray-600">本轮对战总题数(每组)：</label>
+                            <input v-model.number="battleTotalQuestions" type="number" min="1" max="20" class="border-2 border-gray-300 rounded p-2 w-20 text-center font-bold text-lg outline-none focus:border-indigo-500">
+                        </div>
+                        <div class="text-sm text-gray-500 mb-6 bg-gray-50 p-3 rounded text-left inline-block">
+                            <p>📜 <b>计分规则：</b></p>
+                            <p>1. 答对 1 题：净加 10 分</p>
+                            <p>2. 答错 1 题：倒扣 20 分</p>
+                            <p>3. 达成“全对”：结算时额外奖励 10 分</p>
+                        </div>
+                        <br>
+                        <button @click="startBattle" :disabled="!battleGroupA || !battleGroupB || battleTotalQuestions <= 0" class="bg-yellow-500 text-white px-10 py-3 rounded-full font-bold text-xl shadow-lg hover:bg-yellow-600 disabled:opacity-50 transition-all transform hover:scale-105">
+                            开始对局
+                        </button>
                     </div>
-                    <div v-if="battleState === 'fighting'" class="flex gap-6 h-full">
-                        <div class="w-1/3 bg-white rounded-lg shadow p-4 border-t-4 border-blue-500 flex flex-col" :class="{'ring-4 ring-yellow-400': currentTurn === 'A', 'shake-anim': shaking === 'A'}">
-                            <h3 class="text-center font-bold text-xl text-blue-600 mb-4">{{ battleGroupA }}</h3>
-                            <div class="text-sm text-gray-500 mb-1 flex justify-between"><span>总血量</span><span>{{ hpA }}/100</span></div>
-                            <div class="w-full bg-gray-200 h-3 rounded-full mb-6"><div class="bg-blue-500 h-3 rounded-full transition-all" :style="{width: hpA + '%'}"></div></div>
-                            <div class="flex-1 overflow-y-auto flex flex-wrap gap-2 justify-center content-start">
-                                <div v-for="stu in getGroupMembers(battleGroupA)" class="text-center p-2 bg-gray-50 rounded">
-                                    <img :src="getPetImage(stu)" class="h-10 w-10 object-contain mx-auto">
-                                    <div class="text-xs mt-1 w-12 truncate">{{ stu.name }}</div>
+
+                    <div v-if="battleState === 'fighting'" class="flex gap-4 h-full">
+                        
+                        <div class="w-1/3 bg-white rounded-lg shadow p-4 border-t-8 border-blue-500 flex flex-col relative" :class="{'shake-anim': shaking === 'A'}">
+                            <h3 class="text-center font-black text-2xl text-blue-600 mb-2">{{ battleGroupA }}</h3>
+                            <div class="text-center mb-4">
+                                <div class="text-sm text-gray-500 font-bold mb-1">当前净得分</div>
+                                <div class="text-5xl font-black" :class="statsA.score >= 0 ? 'text-green-500' : 'text-red-500'">
+                                    {{ statsA.score > 0 ? '+' : '' }}{{ statsA.score }}
+                                </div>
+                            </div>
+                            
+                            <div class="bg-blue-50 rounded-lg p-3 mb-4 text-sm text-blue-800 font-bold flex justify-between">
+                                <span>进度：{{ statsA.answered }} / {{ battleTotalQuestions }}</span>
+                                <span><i class="fa-solid fa-check text-green-500"></i> {{ statsA.correct }} | <i class="fa-solid fa-times text-red-500"></i> {{ statsA.wrong }}</span>
+                            </div>
+
+                            <div class="space-y-3 mb-6 flex-shrink-0">
+                                <button @click="recordBattleAnswer('A', true)" :disabled="statsA.answered >= battleTotalQuestions" class="w-full bg-green-500 text-white py-3 rounded font-bold shadow hover:bg-green-600 disabled:opacity-40 transition flex justify-center items-center gap-2">
+                                    <i class="fa-solid fa-check-circle text-xl"></i> 本组答对 (+10)
+                                </button>
+                                <button @click="recordBattleAnswer('A', false)" :disabled="statsA.answered >= battleTotalQuestions" class="w-full bg-red-400 text-white py-3 rounded font-bold shadow hover:bg-red-500 disabled:opacity-40 transition flex justify-center items-center gap-2">
+                                    <i class="fa-solid fa-times-circle text-xl"></i> 本组答错 (-20)
+                                </button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto flex flex-wrap gap-2 justify-center content-start border-t pt-4">
+                                <div v-for="stu in getGroupMembers(battleGroupA)" class="text-center">
+                                    <img :src="getPetImage(stu)" class="h-10 w-10 object-contain mx-auto filter drop-shadow">
+                                    <div class="text-xs mt-1 w-12 truncate text-gray-600">{{ stu.name }}</div>
                                 </div>
                             </div>
                         </div>
-                        <div class="w-1/3 bg-white rounded-lg shadow p-6 flex flex-col justify-center items-center text-center">
-                            <div class="text-gray-500 mb-2">当前答题方</div>
-                            <div class="text-3xl font-black mb-8" :class="currentTurn === 'A' ? 'text-blue-600' : 'text-red-600'">{{ currentTurn === 'A' ? battleGroupA : battleGroupB }}</div>
-                            <div class="w-full space-y-4">
-                                <button @click="handleAnswer(true)" class="w-full bg-green-500 text-white py-4 rounded-lg font-bold text-lg shadow hover:bg-green-600 transition"><i class="fa-solid fa-check-circle"></i> 回答正确 (攻击对方)</button>
-                                <button @click="handleAnswer(false)" class="w-full bg-gray-200 text-gray-700 py-4 rounded-lg font-bold text-lg shadow hover:bg-gray-300 transition"><i class="fa-solid fa-times-circle"></i> 回答错误 (自己扣血)</button>
+
+                        <div class="w-1/3 rounded-lg flex flex-col justify-center items-center text-center p-4">
+                            <img src="https://cdn-icons-png.flaticon.com/512/3750/3750033.png" class="w-32 opacity-20 mb-8" alt="VS">
+                            <div class="text-gray-500 font-bold mb-2">答题进度</div>
+                            <div class="w-full bg-gray-300 h-2 rounded-full mb-8 relative">
+                                <div class="absolute left-0 top-0 h-full bg-blue-500 rounded-l-full transition-all" :style="{width: (statsA.answered / battleTotalQuestions * 50) + '%'}"></div>
+                                <div class="absolute right-0 top-0 h-full bg-red-500 rounded-r-full transition-all" :style="{width: (statsB.answered / battleTotalQuestions * 50) + '%'}"></div>
+                                <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-4 bg-gray-400"></div>
                             </div>
+                            <button @click="finishBattle(true)" class="bg-gray-800 text-white px-6 py-2 rounded-full font-bold shadow hover:bg-gray-900 text-sm">
+                                <i class="fa-solid fa-flag-checkered mr-1"></i> 提前结束并结算
+                            </button>
                         </div>
-                        <div class="w-1/3 bg-white rounded-lg shadow p-4 border-t-4 border-red-500 flex flex-col" :class="{'ring-4 ring-yellow-400': currentTurn === 'B', 'shake-anim': shaking === 'B'}">
-                            <h3 class="text-center font-bold text-xl text-red-600 mb-4">{{ battleGroupB }}</h3>
-                            <div class="text-sm text-gray-500 mb-1 flex justify-between"><span>总血量</span><span>{{ hpB }}/100</span></div>
-                            <div class="w-full bg-gray-200 h-3 rounded-full mb-6"><div class="bg-red-500 h-3 rounded-full transition-all" :style="{width: hpB + '%'}"></div></div>
-                            <div class="flex-1 overflow-y-auto flex flex-wrap gap-2 justify-center content-start">
-                                <div v-for="stu in getGroupMembers(battleGroupB)" class="text-center p-2 bg-gray-50 rounded">
-                                    <img :src="getPetImage(stu)" class="h-10 w-10 object-contain mx-auto">
-                                    <div class="text-xs mt-1 w-12 truncate">{{ stu.name }}</div>
+
+                        <div class="w-1/3 bg-white rounded-lg shadow p-4 border-t-8 border-red-500 flex flex-col relative" :class="{'shake-anim': shaking === 'B'}">
+                            <h3 class="text-center font-black text-2xl text-red-600 mb-2">{{ battleGroupB }}</h3>
+                            <div class="text-center mb-4">
+                                <div class="text-sm text-gray-500 font-bold mb-1">当前净得分</div>
+                                <div class="text-5xl font-black" :class="statsB.score >= 0 ? 'text-green-500' : 'text-red-500'">
+                                    {{ statsB.score > 0 ? '+' : '' }}{{ statsB.score }}
+                                </div>
+                            </div>
+                            
+                            <div class="bg-red-50 rounded-lg p-3 mb-4 text-sm text-red-800 font-bold flex justify-between">
+                                <span>进度：{{ statsB.answered }} / {{ battleTotalQuestions }}</span>
+                                <span><i class="fa-solid fa-check text-green-500"></i> {{ statsB.correct }} | <i class="fa-solid fa-times text-red-500"></i> {{ statsB.wrong }}</span>
+                            </div>
+
+                            <div class="space-y-3 mb-6 flex-shrink-0">
+                                <button @click="recordBattleAnswer('B', true)" :disabled="statsB.answered >= battleTotalQuestions" class="w-full bg-green-500 text-white py-3 rounded font-bold shadow hover:bg-green-600 disabled:opacity-40 transition flex justify-center items-center gap-2">
+                                    <i class="fa-solid fa-check-circle text-xl"></i> 本组答对 (+10)
+                                </button>
+                                <button @click="recordBattleAnswer('B', false)" :disabled="statsB.answered >= battleTotalQuestions" class="w-full bg-red-400 text-white py-3 rounded font-bold shadow hover:bg-red-500 disabled:opacity-40 transition flex justify-center items-center gap-2">
+                                    <i class="fa-solid fa-times-circle text-xl"></i> 本组答错 (-20)
+                                </button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto flex flex-wrap gap-2 justify-center content-start border-t pt-4">
+                                <div v-for="stu in getGroupMembers(battleGroupB)" class="text-center">
+                                    <img :src="getPetImage(stu)" class="h-10 w-10 object-contain mx-auto filter drop-shadow">
+                                    <div class="text-xs mt-1 w-12 truncate text-gray-600">{{ stu.name }}</div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div v-if="battleState === 'result'" class="bg-white p-10 rounded-lg shadow text-center max-w-lg mx-auto mt-10">
-                        <i class="fa-solid fa-trophy text-6xl text-yellow-500 mb-4"></i>
-                        <h2 class="text-3xl font-bold mb-4">战斗结束</h2>
-                        <p class="text-xl mb-6">恭喜 <span class="font-bold text-indigo-600">{{ winnerGroup }}</span> 获胜！</p>
-                        <button @click="battleState = 'setup'" class="bg-indigo-600 text-white px-8 py-2 rounded font-bold hover:bg-indigo-700">完成</button>
+
+                    <div v-if="battleState === 'result'" class="bg-white p-10 rounded-lg shadow text-center max-w-2xl mx-auto mt-10">
+                        <i class="fa-solid fa-award text-6xl text-yellow-500 mb-4"></i>
+                        <h2 class="text-3xl font-bold mb-6 text-gray-800">战斗结算报告</h2>
+                        
+                        <div class="flex justify-between gap-6 mb-8">
+                            <div class="flex-1 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                                <div class="font-bold text-xl text-blue-700 mb-2">{{ battleGroupA }}</div>
+                                <div class="text-sm text-gray-600 mb-1">答题得分: {{ statsA.score }}</div>
+                                <div v-if="statsA.bonus > 0" class="text-sm font-bold text-yellow-600 mb-1"><i class="fa-solid fa-star"></i> 全对奖励: +{{ statsA.bonus }}</div>
+                                <div class="mt-3 pt-3 border-t border-blue-200">
+                                    <span class="text-gray-500 text-sm">组员最终获得</span><br>
+                                    <span class="text-3xl font-black" :class="statsA.finalScore >= 0 ? 'text-green-500' : 'text-red-500'">{{ statsA.finalScore > 0 ? '+' : '' }}{{ statsA.finalScore }} 分</span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex-1 bg-red-50 p-4 rounded-lg border border-red-100">
+                                <div class="font-bold text-xl text-red-700 mb-2">{{ battleGroupB }}</div>
+                                <div class="text-sm text-gray-600 mb-1">答题得分: {{ statsB.score }}</div>
+                                <div v-if="statsB.bonus > 0" class="text-sm font-bold text-yellow-600 mb-1"><i class="fa-solid fa-star"></i> 全对奖励: +{{ statsB.bonus }}</div>
+                                <div class="mt-3 pt-3 border-t border-red-200">
+                                    <span class="text-gray-500 text-sm">组员最终获得</span><br>
+                                    <span class="text-3xl font-black" :class="statsB.finalScore >= 0 ? 'text-green-500' : 'text-red-500'">{{ statsB.finalScore > 0 ? '+' : '' }}{{ statsB.finalScore }} 分</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-sm text-gray-500 mb-6"><i class="fa-solid fa-info-circle"></i> 分数已自动结算至相应学生账户中</div>
+                        <button @click="closeBattle" class="bg-indigo-600 text-white px-10 py-3 rounded-full font-bold hover:bg-indigo-700 shadow-lg">完成并返回</button>
                     </div>
                 </div>
             </div>
@@ -280,106 +441,238 @@
     </div>
 
     <script>
-        const { createApp, ref, computed } = Vue;
+        const { createApp, ref, computed, watch } = Vue;
 
         createApp({
             setup() {
                 const students = ref([]);
                 const searchQuery = ref('');
 
-                const availablePetIds = ['1', '4', '7', '10', '13', '16', '19', '21', '23', '25', '27', '29'];
-                const petDex = {};
-                availablePetIds.forEach(id => {
-                    const formatId = (num) => String(num).padStart(3, '0');
-                    petDex[id] = [
-                        `https://assets.pokemon.com/assets/cms2/img/pokedex/detail/${formatId(parseInt(id))}.png`,
-                        `https://assets.pokemon.com/assets/cms2/img/pokedex/detail/${formatId(parseInt(id)+1)}.png`,
-                        `https://assets.pokemon.com/assets/cms2/img/pokedex/detail/${formatId(parseInt(id)+2)}.png`
-                    ];
-                });
+                // 宠物图鉴配置 (保持不变)
+                const petFamilies = {
+                    '1': ['001', '002', '003'], '4': ['004', '005', '006'], '7': ['007', '008', '009'], '16': ['016', '017', '018'],
+                    '63': ['063', '064', '065'], '66': ['066', '067', '068'], '92': ['092', '093', '094'], '147': ['147', '148', '149'],
+                    '152': ['152', '153', '154'], '155': ['155', '156', '157'], '158': ['158', '159', '160'], '172': ['172', '025', '026'],
+                    '173': ['173', '035', '036'], '174': ['174', '039', '040'], '252': ['252', '253', '254'], '255': ['255', '256', '257'],
+                    '258': ['258', '259', '260'], '280': ['280', '281', '282'], '304': ['304', '305', '306'], '371': ['371', '372', '373'],
+                    '374': ['374', '375', '376'], '443': ['443', '444', '445']
+                };
 
+                const petNames = {
+                    '1': '妙蛙家族', '4': '火龙家族', '7': '水龟家族', '16': '飞鸟家族',
+                    '63': '超能家族', '66': '格斗家族', '92': '幽灵家族', '147': '快龙家族',
+                    '152': '菊草家族', '155': '火球家族', '158': '水鳄家族', '172': '皮卡家族',
+                    '173': '皮皮家族', '174': '胖丁家族', '252': '木守宫家族', '255': '火稚鸡家族',
+                    '258': '水跃鱼家族', '280': '沙奈朵家族', '304': '可可多拉家族', '371': '暴飞龙家族',
+                    '374': '巨金怪家族', '443': '烈咬陆鲨家族'
+                };
+
+                const availablePetIds = Object.keys(petFamilies);
+                const petDex = {};
+                for (const key in petFamilies) {
+                    petDex[key] = petFamilies[key].map(id => `https://assets.pokemon.com/assets/cms2/img/pokedex/detail/${id}.png`);
+                }
+
+                // 核心计算与功能
                 const filteredStudents = computed(() => {
                     if (!searchQuery.value) return students.value;
                     return students.value.filter(stu => stu.name.includes(searchQuery.value));
                 });
+                const uniqueGroups = computed(() => [...new Set(students.value.map(s => s.group).filter(Boolean))]);
+                const getGroupMembers = (groupName) => students.value.filter(s => s.group === groupName);
 
-                // ================= 排行榜核心逻辑 =================
+                const editGroup = (stu) => {
+                    const newGroup = prompt(`修改【${stu.name}】的小组名称：`, stu.group || '');
+                    if (newGroup !== null) { stu.group = newGroup.trim(); }
+                };
+
                 const showRankModal = ref(false);
-                const sortedStudents = computed(() => {
-                    // 动态根据积分从高到低排序，积分改变时榜单会自动实时刷新
-                    return [...students.value].sort((a, b) => b.points - a.points);
-                });
+                const sortedStudents = computed(() => [...students.value].sort((a, b) => b.points - a.points));
 
                 const getStageIndex = (points) => Math.min(Math.floor(points / 100), 2);
                 const getPetImage = (stu) => {
                     const stages = petDex[stu.petBaseId] || petDex['1'];
-                    return stages[getStageIndex(stu.points)];
+                    return stages[getStageIndex(stu.points)]; 
                 };
                 const getPetStageClass = (points) => `stage-${getStageIndex(points)}`;
                 const getStageName = (points) => {
                     const idx = getStageIndex(points);
-                    return idx === 0 ? '初始形态' : idx === 1 ? '进化形态' : '终极形态';
+                    return idx === 0 ? '初始形态' : idx === 1 ? '一阶进化' : '终极形态';
                 };
                 const getProgress = (points) => points >= 200 ? 100 : points % 100;
-
-                const changePoints = (stu, amount) => {
-                    stu.points = Math.max(0, stu.points + amount);
+                
+                // 加减分通用方法，保证积分不跌破0
+                const changePoints = (stu, amount) => { 
+                    stu.points = Math.max(0, stu.points + amount); 
                 };
 
+                // =============== 首页快捷加减分 ===============
+                const quickTarget = ref('all');
+                const quickPointsAmount = ref(10);
+                const applyQuickPoints = (isAdd) => {
+                    const amount = isAdd ? (quickPointsAmount.value || 0) : -(quickPointsAmount.value || 0);
+                    if (amount === 0) return;
+                    
+                    let targets = [];
+                    let targetName = '全班所有人';
+                    if (quickTarget.value === 'all') {
+                        targets = students.value;
+                    } else {
+                        targets = getGroupMembers(quickTarget.value);
+                        targetName = `【${quickTarget.value}】小组`;
+                    }
+
+                    if (targets.length === 0) {
+                        alert('所选目标没有学生！');
+                        return;
+                    }
+
+                    targets.forEach(stu => changePoints(stu, amount));
+                    
+                    // 屏幕中央简单反馈
+                    const actionName = isAdd ? '加' : '减';
+                    alert(`已成功为 ${targetName} 统一 ${actionName}了 ${Math.abs(amount)} 积分！`);
+                };
+
+                // =============== 换宠物功能 ===============
                 const showPetModal = ref(false);
                 const activeStudentForPet = ref(null);
                 const tempSelectedPet = ref(null);
-                const openPetModal = (stu) => { activeStudentForPet.value = stu; tempSelectedPet.value = stu.petBaseId; showPetModal.value = true; };
-                const confirmPetChange = () => { if (activeStudentForPet.value && tempSelectedPet.value) { activeStudentForPet.value.petBaseId = tempSelectedPet.value; showPetModal.value = false; } };
+                const openPetModal = (stu) => { activeStudentForPet.value = stu; tempSelectedPet.value = null; showPetModal.value = true; };
+                const confirmPetChange = () => { 
+                    if (activeStudentForPet.value && tempSelectedPet.value && tempSelectedPet.value !== activeStudentForPet.value.petBaseId) { 
+                        activeStudentForPet.value.petBaseId = tempSelectedPet.value; showPetModal.value = false; 
+                    } 
+                };
 
+                // =============== 积分商城与编辑 ===============
                 const showMarketModal = ref(false);
                 const marketSelectedStudent = ref(null);
-                const marketItems = ref([
-                    { id: 1, name: '宠物零食大礼包', cost: 50, icon: '🍪', desc: '包含各种口味零食' },
-                    { id: 2, name: '高级宠物玩具', cost: 100, icon: '🧶', desc: '耐咬耐抓的玩具' },
-                    { id: 3, name: '宠物豪华小屋', cost: 200, icon: '🏠', desc: '舒适的大空间' },
-                    { id: 4, name: '免写作业一次', cost: 150, icon: '🎟️', desc: '班级特权道具' }
-                ]);
+                
+                const defaultMarket = [
+                    { id: 1, name: '棒棒糖奖励', cost: 20, icon: '🍭', desc: '美味棒棒糖一根' },
+                    { id: 2, name: '自选座位一天', cost: 100, icon: '🪑', desc: '可指定任意同桌' },
+                    { id: 3, name: '免抄写作业一次', cost: 150, icon: '🎟️', desc: '可免一次常规抄写' }
+                ];
+                const storedMarket = localStorage.getItem('classPetMarketConfig');
+                const marketItems = ref(storedMarket ? JSON.parse(storedMarket) : defaultMarket);
+                watch(marketItems, (newVal) => {
+                    localStorage.setItem('classPetMarketConfig', JSON.stringify(newVal));
+                }, { deep: true });
+
+                const newMarketItem = ref({ name: '', cost: 50, icon: '🎁', desc: '' });
+                const editingItemId = ref(null);
+
+                const startEditItem = (item) => {
+                    editingItemId.value = item.id;
+                    newMarketItem.value = { ...item };
+                };
+                
+                const cancelEditItem = () => {
+                    editingItemId.value = null;
+                    newMarketItem.value = { name: '', cost: 50, icon: '🎁', desc: '' };
+                };
+
+                const saveMarketItem = () => {
+                    if (!newMarketItem.value.name || !newMarketItem.value.cost) return alert('请输入商品名称和价格！');
+                    
+                    if (editingItemId.value) {
+                        // 编辑模式
+                        const idx = marketItems.value.findIndex(i => i.id === editingItemId.value);
+                        if (idx !== -1) {
+                            marketItems.value[idx] = { ...newMarketItem.value, id: editingItemId.value };
+                        }
+                        editingItemId.value = null;
+                    } else {
+                        // 新增模式
+                        marketItems.value.push({
+                            id: Date.now(), 
+                            name: newMarketItem.value.name,
+                            cost: newMarketItem.value.cost,
+                            icon: newMarketItem.value.icon || '🎁',
+                            desc: newMarketItem.value.desc
+                        });
+                    }
+                    newMarketItem.value = { name: '', cost: 50, icon: '🎁', desc: '' };
+                };
+
+                const removeMarketItem = (id) => {
+                    if (confirm('确定要下架这个奖励商品吗？')) {
+                        marketItems.value = marketItems.value.filter(item => item.id !== id);
+                        if (editingItemId.value === id) cancelEditItem();
+                    }
+                };
+
                 const openMarketGeneral = () => { marketSelectedStudent.value = null; showMarketModal.value = true; };
                 const openMarketForStudent = (stu) => { marketSelectedStudent.value = stu; showMarketModal.value = true; };
                 const buyItem = (item) => {
-                    if (!marketSelectedStudent.value) { alert('请先在上方选择学生！'); return; }
+                    if (!marketSelectedStudent.value) { alert('请先在上方选择要兑换的学生！'); return; }
                     const stu = marketSelectedStudent.value;
-                    if (stu.points >= item.cost) { stu.points -= item.cost; alert(`兑换成功！`); } 
-                    else { alert(`积分不足！还需要 ${item.cost - stu.points} 分。`); }
+                    if (stu.points >= item.cost) { stu.points -= item.cost; alert(`🎉 核销成功！扣除 ${item.cost} 积分。`); } 
+                    else { alert(`积分不足！还差 ${item.cost - stu.points} 分。`); }
                 };
 
+                // =============== 纯净版小组对战 (计分+题数制) ===============
                 const showBattleModal = ref(false);
                 const battleState = ref('setup');
                 const battleGroupA = ref('');
                 const battleGroupB = ref('');
-                const hpA = ref(100);
-                const hpB = ref(100);
-                const currentTurn = ref('A');
+                const battleTotalQuestions = ref(5);
+                
+                const statsA = ref({ score: 0, correct: 0, wrong: 0, answered: 0, finalScore: 0, bonus: 0 });
+                const statsB = ref({ score: 0, correct: 0, wrong: 0, answered: 0, finalScore: 0, bonus: 0 });
                 const shaking = ref('');
-                const winnerGroup = ref('');
 
-                const uniqueGroups = computed(() => [...new Set(students.value.map(s => s.group).filter(Boolean))]);
-                const getGroupMembers = (groupName) => students.value.filter(s => s.group === groupName);
                 const closeBattle = () => { showBattleModal.value = false; battleState.value = 'setup'; };
-                const startBattle = () => { hpA.value = 100; hpB.value = 100; currentTurn.value = 'A'; battleState.value = 'fighting'; };
-                const handleAnswer = (isCorrect) => {
-                    if (currentTurn.value === 'A') {
-                        isCorrect ? (hpB.value -= 30, shaking.value = 'B') : (hpA.value -= 20, shaking.value = 'A');
-                        setTimeout(() => { shaking.value = ''; currentTurn.value = 'B'; checkWin(); }, 600);
-                    } else {
-                        isCorrect ? (hpA.value -= 30, shaking.value = 'A') : (hpB.value -= 20, shaking.value = 'B');
-                        setTimeout(() => { shaking.value = ''; currentTurn.value = 'A'; checkWin(); }, 600);
-                    }
+                
+                const startBattle = () => { 
+                    statsA.value = { score: 0, correct: 0, wrong: 0, answered: 0, finalScore: 0, bonus: 0 };
+                    statsB.value = { score: 0, correct: 0, wrong: 0, answered: 0, finalScore: 0, bonus: 0 };
+                    battleState.value = 'fighting'; 
                 };
-                const checkWin = () => {
-                    if (hpA.value <= 0 || hpB.value <= 0) {
-                        winnerGroup.value = hpA.value <= 0 ? battleGroupB.value : battleGroupA.value;
-                        getGroupMembers(winnerGroup.value).forEach(stu => changePoints(stu, 20));
-                        setTimeout(() => { battleState.value = 'result'; }, 500);
+
+                const recordBattleAnswer = (group, isCorrect) => {
+                    const stats = group === 'A' ? statsA.value : statsB.value;
+                    
+                    if (stats.answered >= battleTotalQuestions.value) return;
+                    
+                    stats.answered++;
+                    if (isCorrect) {
+                        stats.correct++;
+                        stats.score += 10;
+                    } else {
+                        stats.wrong++;
+                        stats.score -= 20;
+                        shaking.value = group;
+                        setTimeout(() => { shaking.value = ''; }, 300);
+                    }
+
+                    // 检查是否两组都答完了
+                    if (statsA.value.answered >= battleTotalQuestions.value && statsB.value.answered >= battleTotalQuestions.value) {
+                        setTimeout(() => finishBattle(false), 500);
                     }
                 };
 
+                const finishBattle = (isEarly = false) => {
+                    if (isEarly && !confirm('确认要提前结束并进入结算吗？未完成的题目将作废。')) return;
+
+                    // 计算全对额外奖励 (只有当答完所有题且全对时才给)
+                    const checkBonus = (stats) => (stats.answered === battleTotalQuestions.value && stats.correct === battleTotalQuestions.value && battleTotalQuestions.value > 0) ? 10 : 0;
+                    
+                    statsA.value.bonus = checkBonus(statsA.value);
+                    statsB.value.bonus = checkBonus(statsB.value);
+
+                    statsA.value.finalScore = statsA.value.score + statsA.value.bonus;
+                    statsB.value.finalScore = statsB.value.score + statsB.value.bonus;
+
+                    // 为两个小组的成员发分（包含扣分逻辑，底层changePoints会保证不跌破0）
+                    getGroupMembers(battleGroupA.value).forEach(stu => changePoints(stu, statsA.value.finalScore));
+                    getGroupMembers(battleGroupB.value).forEach(stu => changePoints(stu, statsB.value.finalScore));
+
+                    battleState.value = 'result';
+                };
+
+                // 数据导入导出
                 const triggerUpload = () => document.getElementById('excel-upload').click();
                 const importData = (event) => {
                     const file = event.target.files[0];
@@ -412,13 +705,24 @@
                 };
 
                 return {
-                    students, searchQuery, filteredStudents, availablePetIds, petDex,
-                    showRankModal, sortedStudents, // 导出排行榜相关变量
+                    students, searchQuery, filteredStudents, availablePetIds, petDex, petNames,
+                    showRankModal, sortedStudents, editGroup,
                     getPetImage, getPetStageClass, getStageName, getProgress, changePoints,
+                    
+                    // 快捷操作
+                    quickTarget, quickPointsAmount, applyQuickPoints,
+                    
                     showPetModal, activeStudentForPet, tempSelectedPet, openPetModal, confirmPetChange,
-                    showMarketModal, marketSelectedStudent, marketItems, openMarketGeneral, openMarketForStudent, buyItem,
-                    showBattleModal, battleState, battleGroupA, battleGroupB, hpA, hpB, currentTurn, shaking, winnerGroup, 
-                    uniqueGroups, getGroupMembers, closeBattle, startBattle, handleAnswer,
+                    
+                    // 商城
+                    showMarketModal, marketSelectedStudent, marketItems, newMarketItem, editingItemId,
+                    saveMarketItem, startEditItem, cancelEditItem, removeMarketItem, openMarketGeneral, openMarketForStudent, buyItem,
+                    
+                    // 对战
+                    showBattleModal, battleState, battleGroupA, battleGroupB, battleTotalQuestions, 
+                    statsA, statsB, shaking, uniqueGroups, getGroupMembers, 
+                    closeBattle, startBattle, recordBattleAnswer, finishBattle,
+                    
                     triggerUpload, importData, exportData
                 };
             }
